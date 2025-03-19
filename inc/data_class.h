@@ -21,19 +21,9 @@ public:
         last_action = 'P';
         last_cost = 0;
         zone = std::string(v, '0');
+        read_action = "";
         // std::cout<<zone<<std::endl;
         
-    }
-
-    bool ReduceSpace(int size)
-    {
-        
-        if(this->free_space > size)
-        {
-            this->free_space -= size;
-            return true;
-        }
-        return false;
     }
     const int id;           //磁盘ID
     const int storage;      //磁盘容量
@@ -43,6 +33,8 @@ public:
     int tag_usage;               // 主要存储的对象标签
     char last_action;            // 上次磁头动作 ('J', 'R', 'P')
     int last_cost;              //上次磁头读动作的消耗
+    int token_cost;         //磁盘剩余令牌数，每个磁盘独立
+    std::string read_action;
     // struct Request* pending_requests; // 读取请求队列
 };
 
@@ -54,7 +46,7 @@ public:
     // {
     //     chunks[obj][disk] = v;
     // }
-
+    bool is_delete;        //true 已被删除，false未被删除
     const int id;          //对象ID
     const int size;        //对象块数
     const int tag;         //对象标签
@@ -71,6 +63,7 @@ public:
         this->already_read_units = 0;
     }
 
+    int begin_time;
     int req_id;
     int obj_id;
     int already_read_units;  //已经读取了几个对象块
