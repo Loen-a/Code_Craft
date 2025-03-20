@@ -1,0 +1,10 @@
+build/
+log/
+data/
+replay/
+.vscode/
+interactor_craft/
+
+debug.txt
+result.txt
+code_craft*
