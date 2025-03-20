@@ -40,12 +40,9 @@ public:
 
 class Object{
 public:
-    Object(int id, int size, int tag):id(id), size(size), tag(tag), save_disk(REP_NUM), chunks(REP_NUM){};
+    Object(int id, int size, int tag):
+         id(id), size(size), tag(tag), save_disk(REP_NUM), chunks(REP_NUM),is_delete(false){};
 
-    // void save_chunks(int obj, int disk, int v)
-    // {
-    //     chunks[obj][disk] = v;
-    // }
     bool is_delete;        //true 已被删除，false未被删除
     const int id;          //对象ID
     const int size;        //对象块数

@@ -7,28 +7,34 @@
 #include <algorithm>
 #include <math.h>
 #include <deque>
+#include <unordered_map>
+#include <queue>
 #include "data_class.h"
+
+
+//lambda函数，谓词
+struct DiskCompare {
+    bool operator()(Disk* a, Disk* b) const {
+        return a->free_space < b->free_space;
+    }
+};
 
 class StorgeManger{
 public:
 
-    StorgeManger(int t, int m, int n,int v,int g):N(n),T(t),M(m),V(v),G(g) 
+    StorgeManger(int t, int m, int n,int v,int g)
+        :N(n),T(t),M(m),V(v),G(g),current_T(0)
     {
-
-        for(int i = 0; i < N; i ++)
-        {
-            Disk* disk = new Disk(i ,v);
-            numDisks.push_back(disk);
-            
+        numDisks.reserve(N);
+        for (int i = 0; i < N; i++) {
+            numDisks.emplace_back(new Disk(i, v));
+            diskQueue.emplace(v, i); // 初始化堆
         }
-        current_T = 0;
     }
-    //刷新每个时间片的令牌
-    void RefreshTokenCost()
-    {
-        for(int i = 0; i < numDisks.size(); i++)
-        {
-            numDisks[i]->token_cost = G;
+    //每个时间片开始刷新令牌
+    void RefreshTokenCost() noexcept{
+        for (auto &disk : numDisks) {
+            disk->token_cost = G;
         }
     }
     bool WriteAction() noexcept
@@ -47,11 +53,7 @@ public:
     bool Write(int id, int size, int tag) noexcept
     {
         Object* obj = new Object(id, size, tag);
-        obj->is_delete = false; //
-        if(obj->save_disk.size() < this->N)
-        {
-            obj->save_disk.reserve(this->N);
-        }
+        
         int diskindex = max_disk();
         //打印存放的对象id
         printf("%d\n", id);
@@ -59,28 +61,27 @@ public:
         //时间复杂度O(n²)
         for(int i  = 0; i < REP_NUM; i++)
         {
-            WriteObject(obj, diskindex, i);
+            WriteObject(*obj, diskindex, i);
             diskindex = (diskindex+ 1) % N;
         }
-        numObjects.push_back(obj);
+        // numObjects.push_back(obj);
+        numObjects[id] = obj;
         fflush(stdout);
         return true;
     }
-    bool WriteObject(Object* obj, int diskindex, int copy_index) noexcept
+    bool WriteObject(Object& obj, int diskindex, int copy_index) noexcept
     {
-        //找出磁盘容量最大的磁盘
-        // int index = max_disk();
-        
-        if(numDisks[diskindex]->free_space < obj->size)
-        {
-            return false;
-        }
         //TODO
-        obj->save_disk[copy_index] = diskindex;
-        // int chunk_indx = 0;
+        // if(numDisks[diskindex]->free_space < obj.size)
+        // {
+        //     return false;
+        // }
+        
+        obj.save_disk[copy_index] = diskindex;
+
         //第几个副本
         printf("%d ", diskindex + 1);
-        int obj_size = obj->size;
+        int obj_size = obj.size;
         //时间复杂度O(n)
         for(int i = 1, j = 1; i <= V; i++)
         {
@@ -90,7 +91,7 @@ public:
             }
             if( numDisks[diskindex]->zone[i] == '0')
             {
-                obj->chunks[copy_index][j] = i;
+                obj.chunks[copy_index][j] = i;
                 numDisks[diskindex]->zone[i] = '1';
                 j++;
                 printf(" %d", i);
@@ -99,54 +100,58 @@ public:
         printf("\n");
         fflush(stdout);
         numDisks[diskindex]->free_space -= obj_size;
+        // 更新堆
+        diskQueue.emplace(numDisks[diskindex]->free_space, diskindex);
         return true;
     }
     //找出剩余磁盘空间最大的磁盘
     int max_disk() noexcept
     {
-        int max_v = 0;
-        
-        for(int i = 1; i < N; i++)
-        {
-            max_v = numDisks[i]->free_space > numDisks[max_v]->free_space ? i:max_v;
+         // 取出最大剩余空间的磁盘索引
+        while (!diskQueue.empty()) {
+            auto [space, index] = diskQueue.top();
+            if (numDisks[index]->free_space == space) {
+                return index;
+            }
+            diskQueue.pop(); // 若堆顶数据过时，则移除
         }
 
-        return max_v;
+        return 0; // 如果堆为空，默认返回第 0 号磁盘（极端情况）
     }
     //更新请求队列
     int UpdateRequestList()
     {
-        int front = numRequests.size();
-        //时间复杂度O(n)
-        auto it = std::remove_if(numRequests.begin(), numRequests.end(), [](ReadRequestNode* node){
-            if(node->status == RequestStatus::Cancelled || node->status == RequestStatus::Completed)
-            {
-                delete node;
-                return true;
+        int before_size = numRequests.size();
+        
+        for (auto it = numRequests.begin(); it != numRequests.end();) {
+            if (it->second->status == RequestStatus::Cancelled || 
+                it->second->status == RequestStatus::Completed) {
+                delete it->second; // 释放内存
+                it = numRequests.erase(it); // **正确删除元素**
+            } else {
+                ++it;
             }
-            return false;
-        });
-        numRequests.erase(it, numRequests.end());
-        int back = numRequests.size();
-        return back - front;
+        }
+    
+        int after_size = numRequests.size();
+        return before_size - after_size;
     }
     //更新对象队列
     int UpdateObjectList()
     {
-        int front = numObjects.size();
-        //时间复杂度O(n)
-        auto it = std::remove_if(numObjects.begin(), numObjects.end(), [](Object* obj){
-            if(obj->is_delete == true)
-            {
-                delete obj;
-                return true;
-            }
-            return false;
-        });
-        numObjects.erase(it, numObjects.end());
-        int back = numObjects.size();
-        return back - front;
+        int before_size = numObjects.size();
 
+        for (auto it = numObjects.begin(); it != numObjects.end();) {
+            if (it->second->is_delete) {
+                delete it->second; // 释放对象
+                it = numObjects.erase(it); // **正确删除元素**
+            } else {
+                ++it;
+            }
+        }
+
+        int after_size = numObjects.size();
+        return before_size - after_size;
     }
     //读取事件
     void ReadACtion() noexcept
@@ -157,36 +162,23 @@ public:
         {
             int reqid, objid;
             scanf("%d%d", &reqid, &objid);
-            ReadRequestNode* rrn = new ReadRequestNode(reqid, objid);
-            rrn->begin_time = current_T;
-            numRequests.push_back(rrn);
+            if (numObjects.find(objid) != numObjects.end()) {
+                numRequests[reqid] = new ReadRequestNode(reqid, objid);
+            }
         }
         //删除过期请求
         UpdateRequestList();
         //处理请求
         int completed_count = 0;
-        std::vector<int> request_id_vec;
+        std::vector<int> completed_requests;
         //时间复杂度O(n²)  待优化
-        for(int i = 0; i < numRequests.size(); i++)
-        {
-            if(numRequests[i]->status != RequestStatus::InProgress)
-            {
-                continue;;
-            }
-            for(auto obj : numObjects)
-            {
-                if(obj->id == numRequests[i]->obj_id)
-                {
-                    bool flag = ReadObject(obj, i);
-                    if(flag)
-                    {
-                        completed_count +=1;
-                        request_id_vec.push_back(numRequests[i]->req_id);
-                    }
-                    break;
+        for (auto& [reqid, request] : numRequests) {
+            if (request->status == RequestStatus::InProgress) {
+                if (ReadObject(numObjects[request->obj_id], reqid)) {
+                    completed_requests.push_back(reqid);
+                    completed_count++;
                 }
             }
-
         }
         //时间复杂度O(n)
         for(int i = 0; i < numDisks.size(); i ++)
@@ -202,7 +194,7 @@ public:
         printf("%d\n", completed_count);
         if(completed_count > 0)
         {
-            for(int num : request_id_vec)
+            for(int num : completed_requests)
             {
                 printf("%d\n", num);
             }
@@ -211,7 +203,7 @@ public:
 
     }
     //读取块的消耗
-    int ReadUnit(int diskindex, int index) noexcept
+    int ReadUnitCost(int diskindex, int index) noexcept
     {
         int cost = 0;
         if(numDisks[diskindex]->last_action == 'r')
@@ -309,7 +301,7 @@ public:
             //找到位置，读取对象块
             if(head == obj->chunks[min_repindex][j])
             {
-                int cost = ReadUnit(save_disk, j);
+                int cost = ReadUnitCost(save_disk, j);
                 if(numDisks[save_disk]->token_cost >= cost)
                 {
                     numDisks[save_disk]->last_cost = cost;
@@ -393,56 +385,66 @@ public:
             scanf("%d", &objid);
             cancel_id[i] = objid;
         }
-        std::vector<std::vector<int>> cancelled_reqid;
+        std::vector<int> cancelled_reqid;
         int n_abort = 0;
         //时间复杂度O(n²)
-        for(int i  = 0; i < n_delet; i++)
-        {
-            std::vector<int> temp = DeleteObject(cancel_id[i]);
-            if(temp.size() > 0)
-            {
-                cancelled_reqid.push_back(temp);
-                n_abort += temp.size();
-            }
-             //删除对象
-            for(auto obj:numObjects)
-            {
-                if(obj->id == cancel_id[i])
-                {
-                    obj->is_delete = true;
+        // for(int i  = 0; i < n_delet; i++)
+        // {
+        //     std::vector<int> temp = DeleteObject(cancel_id[i]);
+        //     if(temp.size() > 0)
+        //     {
+        //         cancelled_reqid.push_back(temp);
+        //         n_abort += temp.size();
+        //     }
+        //      //删除对象
+        //     for(auto obj:numObjects)
+        //     {
+        //         if(obj->id == cancel_id[i])
+        //         {
+        //             obj->is_delete = true;
+        //         }
+        //     }
+        // }
+
+        for (int objid : cancel_id) {
+            if (numObjects.count(objid)) {
+                for (auto& [reqid, request] : numRequests) {
+                    if (request->obj_id == objid && request->status == RequestStatus::InProgress) {
+                        request->status = RequestStatus::Cancelled;
+                        cancelled_reqid.push_back(reqid);
+                        n_abort++;
+                    }
                 }
+                delete numObjects[objid];
+                numObjects.erase(objid);
             }
         }
         printf("%d\n", n_abort);
-        for(int i = 0; i < cancelled_reqid.size(); i++)
-        {
-            for(auto id : cancelled_reqid[i])
-            {
-                printf("%d\n", id);
-            }
+        for (int id : cancelled_reqid) {
+            printf("%d\n", id);
         }
 
        fflush(stdout);
     }
 
-    std::vector<int> DeleteObject(int objid)
-    {
-        // int objid = obj->id;
-        std::vector<int> cance_id;
-        //时间复杂度O(n)
-        for(auto node : numRequests)
-        {
-            if(node->obj_id == objid)
-            {
-                if(node->status == RequestStatus::InProgress)
-                {
-                    node->status = RequestStatus::Cancelled;
-                    cance_id.push_back(node->req_id);
-                }
-            }
-        }
-        return cance_id;
-    }
+    // std::vector<int> DeleteObject(int objid)
+    // {
+    //     // int objid = obj->id;
+    //     std::vector<int> cance_id;
+    //     //时间复杂度O(n)
+    //     for(auto node : numRequests)
+    //     {
+    //         if(node->obj_id == objid)
+    //         {
+    //             if(node->status == RequestStatus::InProgress)
+    //             {
+    //                 node->status = RequestStatus::Cancelled;
+    //                 cance_id.push_back(node->req_id);
+    //             }
+    //         }
+    //     }
+    //     return cance_id;
+    // }
 
     void SetTime(int t)
     {
@@ -458,10 +460,12 @@ public:
         RefreshTokenCost();
         fflush(stdout);
     }
+
 private:    
-    std::vector<Object*> numObjects;    //存储对象容器
+    std::unordered_map<int, Object*> numObjects;    //存储对象容器  
     std::vector<Disk*> numDisks;        //磁盘容器
-    std::deque<ReadRequestNode*> numRequests;  //请求队列
+    std::unordered_map<int, ReadRequestNode*> numRequests;  //请求队列
+    std::priority_queue<std::pair<int, int>> diskQueue;
     const int T;    //时间
     const int M;     //对象标签数
     const int N;    //磁盘个数
@@ -469,6 +473,7 @@ private:
     const int G;    //每个时间的令牌数
     int current_T;  //当前的时间片编号
 };
+
 
 
 #endif //STORGESERVICE_H
