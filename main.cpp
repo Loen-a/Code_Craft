@@ -33,16 +33,35 @@ int main()
     fflush(stdout);
 
     StorgeManger stm(T, M, N, V ,G);
-
+    // std::thread prireuests;
     for(int t = 1; t <= T + EXTRA_TIME; t++)
     {
-
+        // time_t start;
+        // time(&start);
         stm.SetTime(t);
         stm.timestamp_action();
         stm.DeleteAction();
+        // time_t endtime1;
+        // time(&endtime1);
+        // if(endtime1 - start > 1)
+        // {
+        //     printf("DeleteAction");
+        // }
         stm.WriteAction();
-        stm.ReadACtion();
-
+        // prireuests = new std::thread(stm.ThreadPriorityReuests());
+        // time_t endtime2;
+        // time(&endtime2);
+        // if(endtime2 - start > 2)
+        // {
+        //     printf("WriteAction");
+        // }
+        stm.ReadAction();
+        // time_t endtime3;
+        // time(&endtime3);
+        // if(endtime3 - start > 3)
+        // {
+        //     printf("ReadAction");
+        // }
     }
     return 0;
 }
