@@ -33,7 +33,6 @@ int main()
     fflush(stdout);
 
     StorgeManger stm(T, M, N, V ,G);
-    // std::thread prireuests;
     for(int t = 1; t <= T + EXTRA_TIME; t++)
     {
         // time_t start;

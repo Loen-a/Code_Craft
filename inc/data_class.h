@@ -58,6 +58,7 @@ public:
     int req_id;
     int obj_id;
     int obj_tag;
+    int choose_disk;
     int already_read_units;  //已经读取了几个对象块
     int estimated_token_cost;  //预估token消耗
     RequestStatus status;     //0:未完成，1：已完成，2：被取消

@@ -38,7 +38,7 @@ private:
     std::thread prirequest;
     std::priority_queue<ReadRequestNode*, std::vector<ReadRequestNode*>, RequestCompare> MinCostQueue;
     int disktokenisnull = 0;            //记录是否所有磁盘的token都消耗完毕
-    int overtime = 5;
+    int overtime = 20;
     const int T;    //时间
     const int M;     //对象标签数
     const int N;    //磁盘个数
@@ -48,14 +48,19 @@ private:
 public:
 
     StorgeManger(int t, int m, int n,int v,int g)
-        :N(n),T(t),M(m),V(v),G(g),current_T(0)
+        :T(t),M(m),N(n),V(v),G(g),current_T(0)
     {
         numDisks.reserve(N);
-        diskmutex = std::vector<std::mutex>(N);
         for (int i = 0; i < N; i++) {
             numDisks.emplace_back(new Disk(i, v));
             diskQueue.emplace(i, v); // 初始化堆
         }
+    }
+    ~StorgeManger() {
+        for (auto& disk : numDisks) delete disk;
+        for (auto& [id, obj] : numObjects) delete obj;
+        for (auto& [id, req] : numRequests) delete req;
+        for (auto& [id, req] : overtimeRequests) delete req;
     }
     //每个时间片开始刷新令牌
     void RefreshTokenCost() noexcept{
@@ -81,7 +86,6 @@ public:
     {
         Object* obj = new Object(id, size, tag);
         
-        // int diskindex = choose_disk(id, size, tag);
         //打印存放的对象id
         printf("%d\n", id);
 
@@ -93,6 +97,10 @@ public:
             if(!selectdisk.count(rep_index))
             {
                 selectdisk.insert(rep_index);
+            }
+            if(rep_index < 0)
+            {
+                break;
             }
         }
         //时间复杂度O(n²)
@@ -150,11 +158,11 @@ public:
 
         printf("\n");
         fflush(stdout);
-        diskQueue.erase({diskindex,numDisks[diskindex]->free_space});
+        auto old_key = std::make_pair(diskindex, numDisks[diskindex]->free_space);
+        diskQueue.erase(old_key);
         numDisks[diskindex]->free_space -= obj_size;
-        // numDisks[diskindex]->free_space = numDisks[diskindex]->bitmap.size() - numDisks[diskindex]->bitmap.count();
-        // 更新堆
         diskQueue.emplace(diskindex, numDisks[diskindex]->free_space);
+
         return true;
     }
     //找出剩余磁盘空间最大的磁盘
@@ -374,6 +382,10 @@ public:
                 numRequests[reqid] = new ReadRequestNode(reqid, objid,numObjects[objid]->tag, current_T);
             }
         }
+        if(n_read > 0)
+        {
+            PriorityReuests();
+        }
         // 按对象分组请求，优化读取顺序
         // std::unordered_map<int, std::vector<int>> requests_by_objid;
         // for (auto& [reqid, request] : numRequests) {
@@ -418,22 +430,21 @@ public:
         //最小堆处理读请求
         for(int i = 0; i < MinCostQueue.size(); i++)
         {
-            if(disktokenisnull >= N)
-            {
-                //所有磁盘toen都消耗完毕
-                break;
-            }
-            std::unique_lock<std::mutex> lock(ReqestMutex);
+            // if(disktokenisnull >= N)
+            // {
+            //     //所有磁盘toen都消耗完毕
+                // break;
+            // }
             auto& request = MinCostQueue.top();
-            MinCostQueue.pop();
             if(request->status == RequestStatus::Waitting || request->status == RequestStatus::InProgress)
             {
-                if (ReadObject(std::ref(numObjects[request->obj_id]), request->req_id)) {
+                if (ReadObject(numObjects[request->obj_id], request->req_id)) {
                     completed_requests.push_back(request->req_id);
                     completed_count++;
                 }
+                PriorityReuests();
             }
-            
+            MinCostQueue.pop();
         }
         //将之前未读完的对象，先读取
         // for(auto& [objid, requestid] : InprogressRequest)
@@ -517,7 +528,6 @@ public:
             //待修改
             if(numDisks[save_disk]->token_cost <= 0)
             {
-                // HeadSet(true);
                 return false;
             }
             //找到位置，读取对象块
@@ -593,8 +603,6 @@ public:
         //读取完毕
         if(already_read_units > objsize)
         {
-            HeadSet(true);
-            cv.notify_one();         // 唤醒等待线程
             this->numRequests[request_index]->already_read_units = objsize;
             this->numRequests[request_index]->status = RequestStatus::Completed;
             return true;
@@ -749,9 +757,24 @@ public:
                     tempqueue.push(requires);
                 }
             }
-            HeadSet(false);
             MinCostQueue.swap(tempqueue);
         }
+    }
+    void PriorityReuests()
+    {
+        std::priority_queue<ReadRequestNode*, std::vector<ReadRequestNode*>, RequestCompare> tempqueue;
+        if(numRequests.size() > 0)
+        {
+            for(auto& [reqid , requires]:numRequests)
+            {
+                int already_read_units = requires->already_read_units;
+                int minrepcost = mincost(requires->obj_id, already_read_units);
+                requires->estimated_token_cost = minrepcost;
+                tempqueue.push(requires);
+            }
+        }
+        MinCostQueue.swap(tempqueue);
+    
     }
         
 };
