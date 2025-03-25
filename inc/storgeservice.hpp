@@ -1,42 +1,39 @@
 #ifndef STORGESERVICE_H
 #define STORGESERVICE_H
 #include <iostream>
-#include <vector>
-#include <map>
-#include <memory>
-#include <algorithm>
-#include <math.h>
-#include <deque>
-#include <unordered_map>
-#include <queue>
-#include <set>
-#include <thread>
-#include <mutex>
-#include <future>
 #include "data_class.h"
-
-
+//调试
 //lambda函数，谓词
 struct DiskCompare {
     bool operator()(const std::pair<int, int>& a, const std::pair<int, int>& b) const {
         return (a.second > b.second) || (a.second == b.second && a.first < b.first);
     }
 };
-
+class DiskManger{
+private:
+    std::vector<Disk*> numDisks;        //磁盘容器
+    int Ndisks;
+    int Volum;
+public:
+    DiskManger(int N, int V):Ndisks(N), Volum(V)
+    {
+        
+    }
+};
 class StorgeManger{
 private:    
-    std::unordered_map<int, Object*> numObjects;    //存储对象容器  
+    std::unordered_map<int, Object*> numObjects;    //存储对象容器,按照存放磁盘进行分组
     std::vector<Disk*> numDisks;        //磁盘容器
-    std::unordered_map<int, ReadRequestNode*> numRequests;  //请求队列
+    std::unordered_map<int, ReadRequestNode*> numRequests;  //请求队列 ，按照读取磁盘进行分组
     std::unordered_map<int, ReadRequestNode*> overtimeRequests; //过期的队列
     std::set<std::pair<int, int>, DiskCompare> diskQueue;
-    std::vector<std::mutex> diskmutex;          //存放每个磁盘的mutex
-    std::mutex ReqestMutex;     //读取队列锁
-    std::condition_variable cv;       // 条件变量
-    std::atomic<bool> isheadmove{false};
-    std::atomic<bool> threadrunning{false};
-    std::thread prirequest;
-    std::priority_queue<ReadRequestNode*, std::vector<ReadRequestNode*>, RequestCompare> MinCostQueue;
+    //每种标签的TagInfo
+    std::unordered_map<int, TagInfo*> numTagInfo;
+    // std::priority_queue<ReadRequestNode*, std::vector<ReadRequestNode*>, RequestCompare> MinCostQueue;
+    std::vector<int> ReadRequestId;
+    // std::unique_ptr<ReadRequestManager> requestManager; // 在堆上分配
+     std::unordered_map<int, std::vector<int>> obj_read_queues; // obj_id -> 请求 req_id 列表
+    // std::vector<int> obj_id_list;  // 存储所有 obj_id，后续排序使用
     int disktokenisnull = 0;            //记录是否所有磁盘的token都消耗完毕
     int overtime = 20;
     const int T;    //时间
@@ -45,22 +42,84 @@ private:
     const int V;    //磁盘容量
     const int G;    //每个时间的令牌数
     int current_T;  //当前的时间片编号
+
 public:
 
     StorgeManger(int t, int m, int n,int v,int g)
         :T(t),M(m),N(n),V(v),G(g),current_T(0)
     {
+        // requestManager = std::make_unique<ReadRequestManager>();
         numDisks.reserve(N);
+        numObjects.reserve(N);
+        numRequests.reserve(N);
         for (int i = 0; i < N; i++) {
             numDisks.emplace_back(new Disk(i, v));
             diskQueue.emplace(i, v); // 初始化堆
         }
     }
     ~StorgeManger() {
-        for (auto& disk : numDisks) delete disk;
-        for (auto& [id, obj] : numObjects) delete obj;
-        for (auto& [id, req] : numRequests) delete req;
-        for (auto& [id, req] : overtimeRequests) delete req;
+        for (auto& disk : numDisks) delete disk;   
+
+        // for(auto& vec:numObjects)
+        // {
+           for (auto& [id, obj] : numObjects) delete obj;
+        // }
+        // for(auto& vec:numRequests)
+        // {
+           for (auto& [id, req] : numRequests) delete req;
+        // }
+        // for(auto& vec:overtimeRequests)
+        // {
+            for (auto& [id, req] : overtimeRequests) delete req;
+        // }
+        
+    }
+    void init()
+    {
+        //下面三个for待修改
+        //每个标签i删除总数
+        for (int i = 1; i <= M; i++) {
+            int total = 0;
+            int num = 0;
+            TagInfo* taginfo = new TagInfo(M,i);
+            for (int j = 1; j <= (T - 1) / FRE_PER_SLICING + 1; j++) {
+                // scanf("%*d");
+                scanf("%d", &num);
+                total += num;
+
+                taginfo->total_delete[j] = num;
+            }
+            taginfo->total_delete[0] = total;
+            numTagInfo[i] = taginfo;
+        }
+
+        //每个标签i写入总数
+        for (int i = 1; i <= M; i++) {
+            int total = 0;
+            int num = 0;
+            for (int j = 1; j <= (T - 1) / FRE_PER_SLICING + 1; j++) {
+                scanf("%d", &num);
+                // scanf("%*d");
+                total += num;
+                numTagInfo[i]->total_write[j] = num; 
+            }
+            numTagInfo[i]->total_write[0] = total;
+        }
+
+        //每个标签i读取总数
+        for (int i = 1; i <= M; i++) {
+            int total = 0;
+            int num = 0;
+            for (int j = 1; j <= (T - 1) / FRE_PER_SLICING + 1; j++) {
+                scanf("%d", &num);
+                // scanf("%*d");
+                total += num;
+                numTagInfo[i]->total_read[j] = num; 
+            }
+            numTagInfo[i]->total_read[0] = total;
+        }
+        printf("OK\n");
+        fflush(stdout);
     }
     //每个时间片开始刷新令牌
     void RefreshTokenCost() noexcept{
@@ -69,6 +128,7 @@ public:
         }
         disktokenisnull = 0;
     }
+    //写入事件
     bool WriteAction() noexcept
     {
         int n_write;
@@ -91,18 +151,30 @@ public:
 
         std::set<int> selectdisk;
         int hashindex = 0;
-        while(selectdisk.size() < REP_NUM)
+        for(int i = 0; i < REP_NUM;)
         {
-            int rep_index = choose_disk(hashindex++, size, tag);
+            int rep_index = choose_disk(hashindex++, 0, tag);
             if(!selectdisk.count(rep_index))
             {
                 selectdisk.insert(rep_index);
+                i++;
             }
             if(rep_index < 0)
             {
+                //待优化 异常退出
                 break;
             }
         }
+        // int diskindex = choose_disk(0, 0, tag);
+        // selectdisk.insert(diskindex);
+        // for(int i = 0; i < REP_NUM - 1; i++)
+        // {
+        //     diskindex = (diskindex + 1) % N;
+        //     if(!selectdisk.count(diskindex))
+        //     {
+        //         selectdisk.insert(diskindex);
+        //     }
+        // }
         //时间复杂度O(n²)
         int rep_index = 0;
         for(auto& index : selectdisk)
@@ -158,12 +230,17 @@ public:
 
         printf("\n");
         fflush(stdout);
+        //更新磁盘空间
+        UpdateDiskSpace(diskindex, obj_size);
+        return true;
+    }
+    //更新磁盘空间
+    void UpdateDiskSpace(int diskindex, int obj_size)
+    {
         auto old_key = std::make_pair(diskindex, numDisks[diskindex]->free_space);
         diskQueue.erase(old_key);
         numDisks[diskindex]->free_space -= obj_size;
         diskQueue.emplace(diskindex, numDisks[diskindex]->free_space);
-
-        return true;
     }
     //找出剩余磁盘空间最大的磁盘
     int max_disk() noexcept
@@ -300,22 +377,23 @@ public:
         return cost;
     }
     //找到token消耗最少的副本编号
-    int mincost(int obj_id, int chunk_index) noexcept
+    int mincost(int obj_id, int chunk_index, int req_id) noexcept
     {
         int disk_index = 0;
         int cost_temp = G;
         int copy_index = 0;
         //时间复杂度O(n)
-        for(int j = 0; j < REP_NUM; j ++)
+        for(int j = 0; j < REP_NUM; j++)
         {
             int cost = tokencost(numObjects[obj_id], j, chunk_index);
+ 
             if(cost_temp > cost)
             {
                 cost_temp = cost;
                 copy_index = j;
             }
         }
-
+        numRequests[req_id]->estimated_token_cost = cost_temp;
         return copy_index;
 
     }
@@ -358,6 +436,98 @@ public:
         int total_cost = cost_temp + jumps * 100; // 跳跃惩罚
         return total_cost;
     }
+    //针对读请求id排序
+    int sortReqidByTokenCost(std::vector<int>& sortlist)
+    {
+
+        if(sortlist.size() <= 1)
+        {
+            return -1;
+        }
+        // 使用自定义比较函数进行排序
+        std::sort(sortlist.begin(), sortlist.end(), 
+            [&](int reqId1, int reqId2) {
+                // 计算每个请求需要消耗的token
+                int tokenCost1 = 0;
+                int tokenCost2 = 0;
+                if(numRequests[reqId1] != nullptr)
+                {
+                    tokenCost1 = numRequests[reqId1]->estimated_token_cost;
+                }
+                if(numRequests[reqId2] != nullptr)
+                {
+                    tokenCost2 = numRequests[reqId2]->estimated_token_cost;
+                }
+                
+                // 按token消耗从大到小排序
+                return tokenCost1 > tokenCost2;
+            }
+        );
+        return 0;
+    }
+    //针对对象id排序
+    int sortobjByTokenCost(std::vector<int>& sortlist)
+    {
+        if(sortlist.size() <= 1)
+        {
+            return -1;
+        }
+        // 使用自定义比较函数进行排序
+        std::sort(sortlist.begin(), sortlist.end(), 
+            [&](int objid1, int objid2) {
+                // 计算每个请求需要消耗的token
+                int tokenCost1 = 0;
+                int tokenCost2 = 0;
+                int reqId1 = 0;
+                int reqId2 = 0;
+                if(obj_read_queues[objid1].empty() == false)
+                {
+                    reqId1 = obj_read_queues[objid1][0];
+                    tokenCost1 = numRequests[reqId1]->estimated_token_cost;
+                }else{
+                    printf("objid1 is empty");
+                }
+                if(obj_read_queues[objid2].empty() == false)
+                {
+                    reqId2 = obj_read_queues[objid2][0];
+                    tokenCost2 = numRequests[reqId2]->estimated_token_cost;
+                }else{
+                    printf("objid1 is empty");
+                } 
+                // 按token消耗从大到小排序
+                return tokenCost1 > tokenCost2;
+            }
+        );
+        return 0;
+    }
+     // 读取成功后，所有未取消的请求都完成
+    std::vector<int> markReadSuccess(int obj_id) {
+        std::vector<int> completed_requests;
+        auto it = obj_read_queues.find(obj_id);
+        if (it != obj_read_queues.end()) {
+            completed_requests = std::move(it->second); // 直接移动数据，避免拷贝
+            obj_read_queues.erase(it);
+        }
+        return completed_requests;
+    }
+    // 取消请求
+    void cancelRequest(int obj_id, int req_id) {
+        auto it = obj_read_queues.find(obj_id);
+        if (it != obj_read_queues.end()) {
+            auto& req_list = it->second;
+            req_list.erase(std::remove(req_list.begin(), req_list.end(), req_id), req_list.end()); // 删除 req_id
+
+            if (req_list.empty()) { // 如果该 obj_id 没有剩余请求
+                obj_read_queues.erase(it);
+                removeObjIdFromList(obj_id);
+            }
+        }
+    }
+    // 移除 obj_id_list 中的 obj_id
+    void removeObjIdFromList(int obj_id) {
+        ReadRequestId.erase(std::remove(ReadRequestId.begin(), ReadRequestId.end(), obj_id), ReadRequestId.end());
+    }
+
     //读取事件
     void ReadAction() noexcept
     {
@@ -368,118 +538,65 @@ public:
 
         int n_read;
         scanf("%d", &n_read);
-        //待修改
-        // auto it = numRequests.begin();
-        // if(it != numRequests.end() && current_T - it->second->begin_time > 10)
-        // {
-        //     numRequests.clear();
-        // }
+
         for(int i = 0; i < n_read; i++)
         {
             int reqid, objid;
             scanf("%d%d", &reqid, &objid);
             if (numObjects.find(objid) != numObjects.end()) {
                 numRequests[reqid] = new ReadRequestNode(reqid, objid,numObjects[objid]->tag, current_T);
+                int repindex = mincost(objid, 1, reqid);
+                numRequests[reqid]->selectd_replica = repindex;
+                // 如果 objid 是新出现的，加入 vector 进行排序
+                if (obj_read_queues.find(objid) == obj_read_queues.end()) {
+                    ReadRequestId.push_back(objid);
+                }
+                //按照对象分组请求
+                obj_read_queues[objid].push_back(reqid);
             }
         }
-        if(n_read > 0)
-        {
-            PriorityReuests();
-        }
-        // 按对象分组请求，优化读取顺序
-        // std::unordered_map<int, std::vector<int>> requests_by_objid;
-        // for (auto& [reqid, request] : numRequests) {
-        //     if (request->status == RequestStatus::InProgress||request->status == RequestStatus::Waitting) {
-        //         requests_by_objid[request->obj_id].push_back(reqid);
-        //     }
-        // }
-   
+
+
+        //根据token消耗排序
+        sortobjByTokenCost(ReadRequestId);
         //本次时间片处理完成的请求
         int completed_count = 0;
-        std::vector<int> completed_requests;
-        // // 优先处理接近完成的请求
-        // for(auto& [objid, request_ids] : requests_by_objid)
-        // {
-        //     std::sort(request_ids.begin(), request_ids.end(), 
-        //                 [this](int a, int b) {
-        //                     return numRequests[a]->already_read_units > numRequests[b]->already_read_units;
-        //             });
-        // } 
-        // //将之前未读完的对象，先读取
-        // std::unordered_map<int, std::vector<int>> InprogressRequest;
-        // for(auto it = requests_by_objid.begin(); it != requests_by_objid.end();it++)
-        // {
-        //     if(it->second.size() > 0){
-        //         if(numRequests[it->second[0]]->already_read_units > 0)
-        //         {
-        //             auto node = requests_by_objid.extract(it);
-        //             InprogressRequest.insert(std::move(node));
-        //         }
-        //     }
-
-        // }
-        //时间复杂度O(n²)  待优化
-        // for (auto& [reqid, request] : numRequests) {
-        //     if (request->status == RequestStatus::InProgress || request->status == RequestStatus::Waitting) {
-        //         if (ReadObject(numObjects[request->obj_id], reqid)) {
-        //             completed_requests.push_back(reqid);
-        //             completed_count++;
-        //         }
-        //     }
-        // }
-        //最小堆处理读请求
-        for(int i = 0; i < MinCostQueue.size(); i++)
+        std::vector<std::vector<int>> completed_requestslist;
+       //最小堆处理读请求
+        for(int i = ReadRequestId.size() - 1; i >= 0; i--)
         {
-            // if(disktokenisnull >= N)
-            // {
-            //     //所有磁盘toen都消耗完毕
-                // break;
-            // }
-            auto& request = MinCostQueue.top();
-            if(request->status == RequestStatus::Waitting || request->status == RequestStatus::InProgress)
+            if(disktokenisnull >= N)
             {
-                if (ReadObject(numObjects[request->obj_id], request->req_id)) {
-                    completed_requests.push_back(request->req_id);
-                    completed_count++;
-                }
-                PriorityReuests();
+                //所有磁盘toen都消耗完毕
+                break;
             }
-            MinCostQueue.pop();
+            int objid = ReadRequestId[i];
+            int reqid = 0;
+            if(obj_read_queues[objid].empty() == false)
+            {
+                reqid = obj_read_queues[objid][0];
+
+            }else{
+                ReadRequestId.erase(std::remove(ReadRequestId.begin(), ReadRequestId.end(), objid), ReadRequestId.end());
+                continue;
+            }
+            if(numRequests[reqid]->status == RequestStatus::Waitting || 
+                    numRequests[reqid]->status == RequestStatus::InProgress)
+            {
+                if (ReadObject(reqid)) {
+                    std::vector<int> completed_requests = markReadSuccess(objid);
+                    completed_requestslist.push_back(completed_requests);
+                    completed_count += completed_requests.size();
+                    // ReadRequestId.pop_back();
+                    ReadRequestId.erase(std::remove(ReadRequestId.begin(), ReadRequestId.end(), objid), ReadRequestId.end());
+                    for(auto reqid : completed_requests)
+                    {
+                        numRequests[reqid]->already_read_units = numObjects[objid]->size;
+                        numRequests[reqid]->status = RequestStatus::Completed;
+                    }
+                }
+            }
         }
-        //将之前未读完的对象，先读取
-        // for(auto& [objid, requestid] : InprogressRequest)
-        // {
-        //     for(int i = 0; i < requestid.size(); i++)
-        //     {
-        //         if (numRequests[requestid[i]]->status == RequestStatus::InProgress || numRequests[requestid[i]]->status == RequestStatus::Waitting) {
-        //             if (ReadObject(numObjects[numRequests[requestid[i]]->obj_id], requestid[i])) {
-        //                 completed_requests.push_back(requestid[i]);
-        //                 completed_count++;
-        //             }
-        //         }
-        //     }
-        // }
-        // for(auto& [objid, requestid] : requests_by_objid)
-        // {
-        //     if(disktokenisnull >= N)
-        //     {
-        //         break;
-        //     }
-        //     for(int i = 0; i < requestid.size(); i++)
-        //     {
-        //         if(disktokenisnull >= N)
-        //         {
-        //             break;
-        //         }
-        //         //token消耗完，仍然在循环，待优化
-        //         if (numRequests[requestid[i]]->status == RequestStatus::InProgress || numRequests[requestid[i]]->status == RequestStatus::Waitting) {
-        //             if (ReadObject(numObjects[numRequests[requestid[i]]->obj_id], requestid[i])) {
-        //                 completed_requests.push_back(requestid[i]);
-        //                 completed_count++;
-        //             }
-        //         }
-        //     }
-        // }
         //时间复杂度O(n)
         //返回磁盘移动结果
         for(int i = 0; i < numDisks.size(); i ++)
@@ -492,30 +609,32 @@ public:
             printf("%s\n", numDisks[i]->read_action.c_str());
             numDisks[i]->read_action.clear();
         }
-
         //返回完成结果
         printf("%d\n", completed_count);
         if(completed_count > 0)
         {
-            for(int num : completed_requests)
+            for(auto list : completed_requestslist)
             {
-                printf("%d\n", num);
+                for(int reqid : list)
+                {
+                    printf("%d\n", reqid);
+                }
+
             }
         }
         fflush(stdout);
-
     }
 
     //读取对象
     //obj 对象指针，rep_index 对象副本编号，request_index请求编号
-    bool ReadObject(Object* obj, int request_index) noexcept
+    bool ReadObject(int request_index) noexcept
     {
-
+        auto& obj = numObjects[numRequests[request_index]->obj_id];
         int objid = obj->id;
         int objsize = obj->size;
         int already_read_units = this->numRequests[request_index]->already_read_units;
         //找到消耗最少的副本，进行读取
-        int min_repindex = mincost(objid, already_read_units); 
+        int min_repindex = numRequests[request_index]->selectd_replica; 
         int save_disk = obj->save_disk[min_repindex];
         /*
         顺序读取对象块
@@ -603,11 +722,12 @@ public:
         //读取完毕
         if(already_read_units > objsize)
         {
-            this->numRequests[request_index]->already_read_units = objsize;
-            this->numRequests[request_index]->status = RequestStatus::Completed;
+            // this->numRequests[request_index]->already_read_units = objsize;
+            // this->numRequests[request_index]->status = RequestStatus::Completed;
             return true;
         }
         return false;
+        
     }
 
     //删除事件
@@ -621,6 +741,7 @@ public:
             int objid;
             scanf("%d", &objid);
             cancel_id[i] = objid;
+
         }
         std::vector<int> cancelled_reqid;
         int n_abort = 0;
@@ -651,6 +772,7 @@ public:
                         request->status = RequestStatus::Cancelled;
                         cancelled_reqid.push_back(reqid);
                         n_abort++;
+                        cancelRequest(objid,reqid);
                     }
                 }
                 numObjects[objid]->is_delete = true;
@@ -669,6 +791,7 @@ public:
                         request->status = RequestStatus::Cancelled;
                         cancelled_reqid.push_back(reqid);
                         n_abort++;
+                        cancelRequest(objid,reqid);
                     }
                 }
                 numObjects[objid]->is_delete = true;
@@ -696,7 +819,22 @@ public:
         }
         return 0;
     }
-
+    // void PriorityReuests()
+    // {
+    //     std::priority_queue<ReadRequestNode*, std::vector<ReadRequestNode*>, RequestCompare> tempqueue;
+    //     if(numRequests.size() > 0)
+    //     {
+    //         for(auto& [reqid , requires]:numRequests)
+    //         {
+    //             int already_read_units = requires->already_read_units;
+    //             int minrepcost = mincost(requires->obj_id, already_read_units);
+    //             requires->estimated_token_cost = minrepcost;
+    //             tempqueue.push(requires);
+    //         }
+    //     }
+    //     MinCostQueue.swap(tempqueue);
+    
+    // }
     void SetTime(int t)
     {
         current_T = t;
@@ -710,71 +848,6 @@ public:
         printf("TIMESTAMP %d\n", timestamp);
         RefreshTokenCost();
         fflush(stdout);
-    }
-    //
-    bool IsHeadMove()
-    {
-        return isheadmove;
-    }
-    void HeadSet(bool flag)
-    {
-        this->isheadmove = flag;
-    }
-    //多线程来更新优先级请求队列
-    void startthread()
-    {
-        if (threadrunning.load()) {
-            return;  // 避免重复启动线程
-        }
-        threadrunning.store(true);
-        this->prirequest = std::thread(&StorgeManger::ThreadPriorityReuests, this);
-    }
-    void stopthread()
-    {
-       threadrunning.store(false);
-        cv.notify_all();  // 唤醒可能在 wait 中的线程
-        if(prirequest.joinable()){
-            prirequest.join();
-        }
-    }
-    void ThreadPriorityReuests()
-    {
-        std::priority_queue<ReadRequestNode*, std::vector<ReadRequestNode*>, RequestCompare> tempqueue;
-        while(threadrunning.load())
-        {
-            if (!threadrunning.load()) {
-                break;  // 线程安全退出
-            }
-            if(numRequests.size() > 0)
-            {
-                std::unique_lock<std::mutex> lock(ReqestMutex);
-                cv.wait(lock, [this]{return IsHeadMove() || !threadrunning.load();});
-                for(auto& [reqid , requires]:numRequests)
-                {
-                    int already_read_units = requires->already_read_units;
-                    int minrepcost = mincost(requires->obj_id, already_read_units);
-                    requires->estimated_token_cost = minrepcost;
-                    tempqueue.push(requires);
-                }
-            }
-            MinCostQueue.swap(tempqueue);
-        }
-    }
-    void PriorityReuests()
-    {
-        std::priority_queue<ReadRequestNode*, std::vector<ReadRequestNode*>, RequestCompare> tempqueue;
-        if(numRequests.size() > 0)
-        {
-            for(auto& [reqid , requires]:numRequests)
-            {
-                int already_read_units = requires->already_read_units;
-                int minrepcost = mincost(requires->obj_id, already_read_units);
-                requires->estimated_token_cost = minrepcost;
-                tempqueue.push(requires);
-            }
-        }
-        MinCostQueue.swap(tempqueue);
-    
     }
         
 };

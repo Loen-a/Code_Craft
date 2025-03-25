@@ -5,62 +5,42 @@
 #include "data_class.h"
 #include "storgeservice.hpp"
 
+
 int main()
 {
-    int T,M,N,V,G;
-    scanf("%d %d %d %d %d", &T, &M, &N,&V,&G);
-    
-    //下面三个for待修改
-    for (int i = 1; i <= M; i++) {
-        for (int j = 1; j <= (T - 1) / FRE_PER_SLICING + 1; j++) {
+    int Tt,Mm,Nn,Vv,Gg;
+    scanf("%d %d %d %d %d", &Tt, &Mm, &Nn,&Vv,&Gg);
+    for (int i = 1; i <= Mm; i++) {
+        for (int j = 1; j <= (Tt - 1) / FRE_PER_SLICING + 1; j++) {
+            scanf("%*d");
+            // scanf("%d", &num);
+        }
+
+    }
+    //每个标签i写入总数
+    for (int i = 1; i <= Mm; i++) {
+        for (int j = 1; j <= (Tt - 1) / FRE_PER_SLICING + 1; j++) {
+            // scanf("%d", &num);
             scanf("%*d");
         }
     }
-
-    for (int i = 1; i <= M; i++) {
-        for (int j = 1; j <= (T - 1) / FRE_PER_SLICING + 1; j++) {
+     //每个标签i读取总数
+    for (int i = 1; i <= Mm; i++) {
+        for (int j = 1; j <= (Tt - 1) / FRE_PER_SLICING + 1; j++) {
             scanf("%*d");
         }
     }
-
-    for (int i = 1; i <= M; i++) {
-        for (int j = 1; j <= (T - 1) / FRE_PER_SLICING + 1; j++) {
-            scanf("%*d");
-        }
-    }
-
     printf("OK\n");
     fflush(stdout);
-
-    StorgeManger stm(T, M, N, V ,G);
-    for(int t = 1; t <= T + EXTRA_TIME; t++)
+    StorgeManger stm(Tt, Mm, Nn, Vv ,Gg);
+    // stm.init();
+    for(int t = 1; t <= Tt + EXTRA_TIME; t++)
     {
-        // time_t start;
-        // time(&start);
         stm.SetTime(t);
         stm.timestamp_action();
         stm.DeleteAction();
-        // time_t endtime1;
-        // time(&endtime1);
-        // if(endtime1 - start > 1)
-        // {
-        //     printf("DeleteAction");
-        // }
         stm.WriteAction();
-        // prireuests = new std::thread(stm.ThreadPriorityReuests());
-        // time_t endtime2;
-        // time(&endtime2);
-        // if(endtime2 - start > 2)
-        // {
-        //     printf("WriteAction");
-        // }
         stm.ReadAction();
-        // time_t endtime3;
-        // time(&endtime3);
-        // if(endtime3 - start > 3)
-        // {
-        //     printf("ReadAction");
-        // }
     }
     return 0;
 }
