@@ -72,10 +72,10 @@ public:
     int req_id;
     int obj_id;
     int obj_tag;
-    int selectd_replica;
-    int already_read_units;  //已经读取了几个对象块
+    int selectd_replica;       //选择读取的副本编号，从0开始数
+    int already_read_units;  //已经读取了几个对象块,从1开始数
     int estimated_token_cost;  //预估token消耗
-    std::bitset<MAX_OBJECT_SIZE> obj_units;   //记录每个块的读取情况
+    std::bitset<MAX_OBJECT_SIZE> obj_units;   //记录每个块的读取情况,从1开始数
     RequestStatus status;     //0:未完成，1：已完成，2：被取消
 };
 //按照对象分组的读取队列
