@@ -6,17 +6,17 @@
 #include "storgeservice.hpp"
 
 
-std::ofstream logfile("error_log.txt", std::ios::app);
-void signalHandler(int signum) {
-    logfile << "Caught signal " << signum << ": Segmentation fault!" << std::endl;
-    // 执行必要的清理工作
-    exit(signum);  // 或者可以选择跳出程序、执行其他操作
-}
+// std::ofstream logfile("error_log.txt", std::ios::trunc);
+// void signalHandler(int signum) {
+//     logfile << "Caught signal " << signum << ": Segmentation fault!" << std::endl;
+//     // 执行必要的清理工作
+//     exit(signum);  // 或者可以选择跳出程序、执行其他操作
+// }
 int main()
 {
  
      // 设置信号处理程序来捕捉 SIGSEGV (段错误)
-    signal(SIGSEGV, signalHandler);
+    // signal(SIGSEGV, signalHandler);
         // 引发段错误：访问空指针
 
     int Tt,Mm,Nn,Vv,Gg;
@@ -43,14 +43,17 @@ int main()
     }
     printf("OK\n");
     fflush(stdout);
+
     StorgeManger stm(Tt, Mm, Nn, Vv ,Gg);
     for(int t = 1; t <= Tt + EXTRA_TIME; t++)
     {
-        stm.SetTime(t);
         stm.timestamp_action();
         stm.DeleteAction();
+
         stm.WriteAction();
+
         stm.ReadAction();
+
     }
     return 0;
 }

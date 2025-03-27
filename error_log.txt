@@ -1,0 +1,164 @@
+current_t: 14400
+	Total DeleteAction time: 4 sec
+	Total WriteAction time: 0 sec
+	Total ReadAction time: 0 sec
+current_t: 16200
+	Total DeleteAction time: 0 sec
+	Total WriteAction time: 0 sec
+	Total ReadAction time: 1 sec
+current_t: 18000
+	Total DeleteAction time: 1 sec
+	Total WriteAction time: 0 sec
+	Total ReadAction time: 1 sec
+current_t: 19800
+	Total DeleteAction time: 0 sec
+	Total WriteAction time: 0 sec
+	Total ReadAction time: 1 sec
+current_t: 21600
+	Total DeleteAction time: 1 sec
+	Total WriteAction time: 0 sec
+	Total ReadAction time: 1 sec
+current_t: 23400
+	Total DeleteAction time: 1 sec
+	Total WriteAction time: 0 sec
+	Total ReadAction time: 1 sec
+current_t: 25200
+	Total DeleteAction time: 2 sec
+	Total WriteAction time: 0 sec
+	Total ReadAction time: 0 sec
+current_t: 27000
+	Total DeleteAction time: 2 sec
+	Total WriteAction time: 0 sec
+	Total ReadAction time: 0 sec
+current_t: 28800
+	Total DeleteAction time: 1 sec
+	Total WriteAction time: 0 sec
+	Total ReadAction time: 1 sec
+current_t: 30600
+	Total DeleteAction time: 1 sec
+	Total WriteAction time: 0 sec
+	Total ReadAction time: 1 sec
+current_t: 32400
+	Total DeleteAction time: 2 sec
+	Total WriteAction time: 0 sec
+	Total ReadAction time: 1 sec
+current_t: 34200
+	Total DeleteAction time: 0 sec
+	Total WriteAction time: 0 sec
+	Total ReadAction time: 2 sec
+current_t: 36000
+	Total DeleteAction time: 1 sec
+	Total WriteAction time: 0 sec
+	Total ReadAction time: 1 sec
+current_t: 37800
+	Total DeleteAction time: 0 sec
+	Total WriteAction time: 0 sec
+	Total ReadAction time: 3 sec
+current_t: 39600
+	Total DeleteAction time: 0 sec
+	Total WriteAction time: 0 sec
+	Total ReadAction time: 2 sec
+current_t: 41400
+	Total DeleteAction time: 1 sec
+	Total WriteAction time: 0 sec
+	Total ReadAction time: 1 sec
+current_t: 43200
+	Total DeleteAction time: 2 sec
+	Total WriteAction time: 0 sec
+	Total ReadAction time: 1 sec
+current_t: 45000
+	Total DeleteAction time: 1 sec
+	Total WriteAction time: 0 sec
+	Total ReadAction time: 2 sec
+current_t: 46800
+	Total DeleteAction time: 3 sec
+	Total WriteAction time: 0 sec
+	Total ReadAction time: 0 sec
+current_t: 48600
+	Total DeleteAction time: 1 sec
+	Total WriteAction time: 0 sec
+	Total ReadAction time: 1 sec
+current_t: 50400
+	Total DeleteAction time: 1 sec
+	Total WriteAction time: 0 sec
+	Total ReadAction time: 1 sec
+current_t: 52200
+	Total DeleteAction time: 1 sec
+	Total WriteAction time: 0 sec
+	Total ReadAction time: 1 sec
+current_t: 54000
+	Total DeleteAction time: 0 sec
+	Total WriteAction time: 0 sec
+	Total ReadAction time: 2 sec
+current_t: 55800
+	Total DeleteAction time: 0 sec
+	Total WriteAction time: 0 sec
+	Total ReadAction time: 3 sec
+current_t: 57600
+	Total DeleteAction time: 1 sec
+	Total WriteAction time: 0 sec
+	Total ReadAction time: 1 sec
+current_t: 59400
+	Total DeleteAction time: 1 sec
+	Total WriteAction time: 0 sec
+	Total ReadAction time: 2 sec
+current_t: 61200
+	Total DeleteAction time: 1 sec
+	Total WriteAction time: 1 sec
+	Total ReadAction time: 0 sec
+current_t: 63000
+	Total DeleteAction time: 1 sec
+	Total WriteAction time: 0 sec
+	Total ReadAction time: 1 sec
+current_t: 64800
+	Total DeleteAction time: 1 sec
+	Total WriteAction time: 0 sec
+	Total ReadAction time: 2 sec
+current_t: 66600
+	Total DeleteAction time: 2 sec
+	Total WriteAction time: 0 sec
+	Total ReadAction time: 0 sec
+current_t: 68400
+	Total DeleteAction time: 0 sec
+	Total WriteAction time: 0 sec
+	Total ReadAction time: 2 sec
+current_t: 70200
+	Total DeleteAction time: 1 sec
+	Total WriteAction time: 1 sec
+	Total ReadAction time: 1 sec
+current_t: 72000
+	Total DeleteAction time: 2 sec
+	Total WriteAction time: 0 sec
+	Total ReadAction time: 1 sec
+current_t: 73800
+	Total DeleteAction time: 0 sec
+	Total WriteAction time: 0 sec
+	Total ReadAction time: 2 sec
+current_t: 75600
+	Total DeleteAction time: 1 sec
+	Total WriteAction time: 0 sec
+	Total ReadAction time: 1 sec
+current_t: 77400
+	Total DeleteAction time: 2 sec
+	Total WriteAction time: 0 sec
+	Total ReadAction time: 0 sec
+current_t: 79200
+	Total DeleteAction time: 2 sec
+	Total WriteAction time: 0 sec
+	Total ReadAction time: 0 sec
+current_t: 81000
+	Total DeleteAction time: 1 sec
+	Total WriteAction time: 0 sec
+	Total ReadAction time: 0 sec
+current_t: 82800
+	Total DeleteAction time: 0 sec
+	Total WriteAction time: 0 sec
+	Total ReadAction time: 1 sec
+current_t: 84600
+	Total DeleteAction time: 0 sec
+	Total WriteAction time: 0 sec
+	Total ReadAction time: 0 sec
+current_t: 86400
+	Total DeleteAction time: 0 sec
+	Total WriteAction time: 0 sec
+	Total ReadAction time: 1 sec
